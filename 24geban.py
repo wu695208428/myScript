@@ -1,5 +1,5 @@
 import requests
-
+import re
 # 需要fromUserName
 
 
@@ -18,11 +18,72 @@ url = f'https://www.24geban.com/wx/auth/login.jhtml?id=1&fromUserName={fromUserN
 response = requests.get(url, headers=headers,
                         cookies=cookies, allow_redirects=False)
 cookies = response.cookies.get_dict()
-print(cookies)
+print('Cookies:', cookies)
 
 # 签到
 # 签到页面
 # https://www.24geban.com/wx/auth/wechat/index.jhtml?userId=1&type=32
 url = "https://www.24geban.com/wx/customer/signin.wx"
 response = requests.get(url, headers=headers, cookies=cookies)
-print(response.text)
+print('签到:', response.text)
+
+# 获取id
+url = 'https://www.24geban.com/wx/customer/sign/index.wx'
+response = requests.get(url, headers=headers, cookies=cookies)
+result = re.findall('ID:(\d+)</p>', response.text)
+loginCustomerId = result[0]
+print('id:', loginCustomerId)
+
+# 领券
+# 券的详情 https://www.24geban.com/applet/coupon/bag/data.jhtml
+url = "https://www.24geban.com/wx/template/coupon/bag/get.jhtml"
+data = {
+    "fromCustomerId": loginCustomerId,
+    "id": "5",
+    "userId": "1",
+    "appletId": "4",
+    "apiToken": "6a8a1f634e38d30e87b450899b31f810",
+    "loginCustomerId": loginCustomerId,
+    # 可空
+    "loginCustomerToken": "",
+    "_api_version_": "2",
+    "requestFromType": "wechatApplet"
+}
+response = requests.post(url, headers=headers, data=data)
+print('每日领券:', response.text)
+
+# 个人信息
+url = "https://www.24geban.com/wechat/applet/user/personalCore.jhtml"
+params = {
+    "customerId": loginCustomerId,
+    "userId": "1",
+    "appletId": "4",
+    "apiToken": "6a8a1f634e38d30e87b450899b31f810",
+    "loginCustomerId": loginCustomerId,
+    # 可空
+    "loginCustomerToken": "",
+    "_api_version_": "2",
+    "requestFromType": "wechatApplet"
+}
+response = requests.get(url, headers=headers, params=params)
+j = response.json()
+print(f'当前积分:{j["remainScore"]}')
+print(f'当前优惠券数目:{j["remainCouponValue"]}')
+
+# 优惠券列表
+url = "https://www.24geban.com/wechat/applet/coupon/list.jhtml"
+params = {
+    "customerId": loginCustomerId,
+    "userId": "1",
+    "appletId": "4",
+    "apiToken": "6a8a1f634e38d30e87b450899b31f810",
+    "loginCustomerId": loginCustomerId,
+    # 可空
+    "loginCustomerToken": "",
+    "_api_version_": "2",
+    "requestFromType": "wechatApplet"
+}
+response = requests.get(url, headers=headers, params=params)
+for i in response.json()['allCouponList']:
+    print(i['coupon']['name'],
+          f'{i["coupon"]["minConsume"]}-{i["coupon"]["value"]}')
